@@ -4,8 +4,6 @@ const axios = require("axios");
 const jwt = require("jsonwebtoken");
 const supabase = require("../utils/supabase");
 
-require("dotenv").config();
-
 
 // ---------------------------------------------
 // 1) REDIRECTION VERS DISCORD
@@ -16,6 +14,8 @@ router.get("/auth/discord", (req, res) => {
   }&redirect_uri=${encodeURIComponent(
     process.env.DISCORD_REDIRECT_URI
   )}&response_type=code&scope=identify%20email`;
+
+  console.log("REDIRECT_URI ENVOYÉ À DISCORD :", process.env.DISCORD_REDIRECT_URI);
 
   res.redirect(redirect);
 });
@@ -33,6 +33,7 @@ router.get("/auth/discord/callback", async (req, res) => {
     return res.status(200).send("Callback ignoré");
   }
 
+  console.log("CODE REÇU :", code);
   try {
     // Échanger le code contre un access_token
     const tokenResponse = await axios.post(
@@ -103,8 +104,12 @@ if (!existingUser) {
       { expiresIn: "7d" }
     );
 
+
+    // ⭐ AJOUTE CETTE LIGNE EXACTEMENT ICI
+    console.log("FRONTEND_URL =", process.env.FRONTEND_URL);
+    
     // Redirection vers le frontend AVEC le token
-    return res.redirect(`http://localhost:3000?token=${token}`);
+    res.json({ token, redirect: `${process.env.FRONTEND_URL}?token=${token}` });
 
   } catch (err) {
     console.log("===== ERREUR DISCORD =====");
