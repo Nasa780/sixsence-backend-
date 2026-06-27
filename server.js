@@ -26,6 +26,9 @@ app.get("/", (req, res) => {
 // Routes d'authentification
 app.use("/", authRoutes);
 
+const leaderboardRoutes = require("./src/routes/leaderboard");
+app.use("/", leaderboardRoutes);
+
 // Routes de la file d'attente
 app.use("/", queueRoutes);
 
