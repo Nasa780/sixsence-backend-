@@ -109,7 +109,7 @@ if (!existingUser) {
     console.log("FRONTEND_URL =", process.env.FRONTEND_URL);
     
     // Redirection vers le frontend AVEC le token
-    res.json({ token, redirect: `${process.env.FRONTEND_URL}?token=${token}` });
+    res.json({ token, redirect: `${process.env.FRONTEND_URL}/?token=${token}` });
 
   } catch (err) {
     console.log("===== ERREUR DISCORD =====");
