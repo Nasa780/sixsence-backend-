@@ -20,14 +20,16 @@ app.use(express.json());
 
 // Route principale
 app.get("/", (req, res) => {
-    res.json({ message: "Sixsence Backend API is running" });
+  res.json({ message: "Sixsence Backend API is running" });
 });
 
-// Utiliser les routes Discord
+// Routes d'authentification
 app.use("/", authRoutes);
+
+// Routes de la file d'attente
 app.use("/", queueRoutes);
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-    console.log(`🚀 Sixsence Backend running on port ${PORT}`);
+  console.log(`🚀 Sixsence Backend running on port ${PORT}`);
 });

@@ -3,7 +3,7 @@ const router = express.Router();
 const axios = require("axios");
 const jwt = require("jsonwebtoken");
 const supabase = require("../utils/supabase");
-
+const { authMiddleware } = require("../../middleware/auth.js");
 
 // ---------------------------------------------
 // 1) REDIRECTION VERS DISCORD
@@ -27,13 +27,11 @@ router.get("/auth/discord/callback", async (req, res) => {
   const code = req.query.code;
   console.log("CODE REÇU :", code);
 
-  // 🔥 Correction : ignorer les callbacks sans code SANS redirection
   if (!code) {
     console.log("CALLBACK SANS CODE → IGNORÉ");
     return res.status(200).send("Callback ignoré");
   }
 
-  console.log("CODE REÇU :", code);
   try {
     // Échanger le code contre un access_token
     const tokenResponse = await axios.post(
@@ -61,37 +59,37 @@ router.get("/auth/discord/callback", async (req, res) => {
     // ---------------------------------------------
     // 3) INSÉRER / METTRE À JOUR L'UTILISATEUR DANS SUPABASE
     // ---------------------------------------------
-const { data: existingUser, error: selectError } = await supabase
-  .from("users")
-  .select("*")
-  .eq("discord_id", discordUser.id)
-  .single();
+    const { data: existingUser, error: selectError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("discord_id", discordUser.id)
+      .single();
 
-console.log("SELECT ERROR :", selectError);
-console.log("EXISTING USER :", existingUser);
+    console.log("SELECT ERROR :", selectError);
+    console.log("EXISTING USER :", existingUser);
 
-if (!existingUser) {
-  const { error: insertError } = await supabase.from("users").insert([
-    {
-      discord_id: discordUser.id,
-      username: discordUser.username,
-      avatar: `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`,
-      email: discordUser.email || null,
-    },
-  ]);
+    if (!existingUser) {
+      const { error: insertError } = await supabase.from("users").insert([
+        {
+          discord_id: discordUser.id,
+          username: discordUser.username,
+          avatar: `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`,
+          email: discordUser.email || null,
+        },
+      ]);
 
-  console.log("INSERT ERROR :", insertError);
-} else {
-  const { error: updateError } = await supabase
-    .from("users")
-    .update({
-      username: discordUser.username,
-      avatar: `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`,
-    })
-    .eq("discord_id", discordUser.id);
+      console.log("INSERT ERROR :", insertError);
+    } else {
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({
+          username: discordUser.username,
+          avatar: `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`,
+        })
+        .eq("discord_id", discordUser.id);
 
-  console.log("UPDATE ERROR :", updateError);
-}
+      console.log("UPDATE ERROR :", updateError);
+    }
 
     // ---------------------------------------------
     // 4) CRÉER UN TOKEN JWT POUR LE FRONTEND
@@ -100,14 +98,12 @@ if (!existingUser) {
       {
         discord_id: discordUser.id,
       },
-      process.env.SESSION_SECRET,
+      process.env.JWT_SECRET, // ⭐ Unifié
       { expiresIn: "7d" }
     );
 
-
-    // ⭐ AJOUTE CETTE LIGNE EXACTEMENT ICI
     console.log("FRONTEND_URL =", process.env.FRONTEND_URL);
-    
+
     // Redirection vers le frontend AVEC le token
     res.redirect(`${process.env.FRONTEND_URL}/?token=${token}`);
 
@@ -120,31 +116,18 @@ if (!existingUser) {
 });
 
 // ---------------------------------------------
-// 5) ROUTE /me → RENVOIE L'UTILISATEUR CONNECTÉ
+// 5) ROUTE /me → SÉCURISÉE AVEC authMiddleware
 // ---------------------------------------------
-router.get("/me", async (req, res) => {
-  const authHeader = req.headers.authorization;
+router.get("/me", authMiddleware, async (req, res) => {
+  const { data: user, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("discord_id", req.user.discord_id)
+    .single();
 
-  if (!authHeader)
-    return res.status(401).json({ error: "No token provided" });
+  if (error) return res.status(400).json({ error });
 
-  const token = authHeader.split(" ")[1];
-
-  try {
-    const decoded = jwt.verify(token, process.env.SESSION_SECRET);
-
-    const { data: user, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("discord_id", decoded.discord_id)
-      .single();
-
-    if (error) return res.status(400).json({ error });
-
-    res.json(user);
-  } catch (err) {
-    res.status(401).json({ error: "Invalid token" });
-  }
+  res.json(user);
 });
 
 module.exports = router;
