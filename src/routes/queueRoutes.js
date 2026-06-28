@@ -6,12 +6,12 @@ const { authMiddleware } = require("../../middleware/auth.js");
 const router = express.Router();
 
 /* ---------------------------------------------------------
-   QUEUE EN MÉMOIRE (identique à ta version)
+   QUEUE EN MÉMOIRE
 --------------------------------------------------------- */
 let queue = {};
 
 /* ---------------------------------------------------------
-   FONCTION : Nettoyer les entrées expirées (identique)
+   NETTOYAGE DES ENTRÉES EXPIRÉES
 --------------------------------------------------------- */
 function clearExpired() {
   const now = Date.now();
@@ -28,10 +28,21 @@ function clearExpired() {
 /* ---------------------------------------------------------
    POST /queue/join
 --------------------------------------------------------- */
-router.post("/queue/join", authMiddleware, (req, res) => {
+router.post("/queue/join", authMiddleware, async (req, res) => {
   clearExpired();
 
   const discord_id = req.user.discord_id;
+
+  // 🔥 Récupérer l'utilisateur dans Supabase
+  const { data: user, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("discord_id", discord_id)
+    .single();
+
+  if (error || !user) {
+    return res.status(400).json({ error: "Utilisateur introuvable" });
+  }
 
   // Déjà dans la file
   if (queue[discord_id]) {
@@ -48,8 +59,8 @@ router.post("/queue/join", authMiddleware, (req, res) => {
 
   // Nouvelle entrée
   queue[discord_id] = {
-    username: req.user.username,
-    avatar: req.user.avatar,
+    username: user.username,
+    avatar: user.avatar,
     joinedAt: Date.now(),
     duration: 30 * 60, // 30 minutes
   };
@@ -107,7 +118,6 @@ router.get("/queue/status", authMiddleware, (req, res) => {
 
 /* ---------------------------------------------------------
    GET /queue/list
-   → Pour afficher les joueurs dans la file
 --------------------------------------------------------- */
 router.get("/queue/list", authMiddleware, (req, res) => {
   clearExpired();
