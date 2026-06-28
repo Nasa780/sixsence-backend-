@@ -1,5 +1,5 @@
 const express = require("express");
-const supabase = require("../../utils/supabase");
+const supabase = require("../utils/supabase");
 
 const { authMiddleware } = require("../../middleware/auth.js");
 
