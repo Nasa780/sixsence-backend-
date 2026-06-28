@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { authMiddleware } = require("../../middleware/auth");
-const supabase = require("../supabase");
+const supabase = require("../../supabase");
 
 router.get("/leaderboard/top10", authMiddleware, async (req, res) => {
   const { data: players } = await supabase
